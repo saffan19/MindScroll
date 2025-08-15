@@ -5,10 +5,70 @@ from preprocessing.category_loader import load_categories
 from preprocessing.nlp_classifier import classify_content
 from preprocessing.article_store import load_existing_articles, save_articles_to_file
 
-def extract_image_url(description):
+def extract_image_url(entry):
     import re
-    match = re.search(r'<img[^>]+src="([^"]+)"', description)
-    return match.group(1) if match else None
+
+    # Helper: Find first image URL in a string (jpg, jpeg, png, gif, webp, svg)
+    def find_image_url(text):
+        # Regex for common image extensions
+        match = re.search(r'(https?://[^\s"\'>]+?\.(?:jpg|jpeg|png|gif|webp|svg))', text, re.IGNORECASE)
+        return match.group(1) if match else None
+
+    # 1. Check description
+    description = entry.get("description", "")
+    url = find_image_url(description)
+    if url:
+        return url
+
+    # 2. Check content:encoded
+    content_encoded = entry.get("content:encoded", "")
+    url = find_image_url(content_encoded)
+    if url:
+        return url
+
+    # 3. Check summary
+    summary = entry.get("summary", "")
+    url = find_image_url(summary)
+    if url:
+        return url
+
+    # 4. Check enclosure(s)
+    enclosure = entry.get("enclosure")
+    if enclosure and isinstance(enclosure, dict):
+        url = enclosure.get("url")
+        if url and re.search(r'\.(jpg|jpeg|png|gif|webp|svg)$', url, re.IGNORECASE):
+            return url
+    enclosures = entry.get("enclosures")
+    if enclosures and isinstance(enclosures, list):
+        for enc in enclosures:
+            url = enc.get("url")
+            if url and re.search(r'\.(jpg|jpeg|png|gif|webp|svg)$', url, re.IGNORECASE):
+                return url
+
+    # 5. Check media:content
+    media_content = entry.get("media_content")
+    if media_content and isinstance(media_content, list):
+        for media in media_content:
+            url = media.get("url")
+            if url and re.search(r'\.(jpg|jpeg|png|gif|webp|svg)$', url, re.IGNORECASE):
+                return url
+
+    # 6. Check all entry values for image URLs (last resort)
+    for value in entry.values():
+        if isinstance(value, str):
+            url = find_image_url(value)
+            if url:
+                return url
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    for v in item.values():
+                        if isinstance(v, str):
+                            url = find_image_url(v)
+                            if url:
+                                return url
+
+    return None
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -28,7 +88,7 @@ if __name__ == "__main__":
             if not guid or not link or not source or guid in existing_guids:
                 continue
             description = entry.get("description", "")
-            image_url = extract_image_url(description)
+            image_url = extract_image_url(entry)
             content = extract_content_from_link(link) if link else ""
             if not content or len(content) < 200:
                 continue

@@ -1,11 +1,11 @@
 # hacker news:
 https://hnrss.org/frontpage
 # tech crunch
-#https://techcrunch.com/feed/
+https://techcrunch.com/feed/
 #wired
-#https://www.wired.com/feed/tag/ai/latest/rss
-#https://www.wired.com/feed/category/business/latest/rss
+https://www.wired.com/feed/tag/ai/latest/rss
+https://www.wired.com/feed/category/business/latest/rss
 https://www.wired.com/feed/category/ideas/latest/rss
-#https://www.wired.com/feed/category/science/latest/rss
+https://www.wired.com/feed/category/science/latest/rss
 https://www.howtogeek.com/feed/
-#https://diyquickly.com/feed/
+https://diyquickly.com/feed/

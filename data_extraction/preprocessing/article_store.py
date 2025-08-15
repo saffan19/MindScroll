@@ -1,7 +1,7 @@
 import json
 import os
 
-DATA_FILE = "/content/content.json"
+DATA_FILE = "content/content.json"
 
 def load_existing_articles():
     if os.path.exists(DATA_FILE):
