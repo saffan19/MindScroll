@@ -6,3 +6,6 @@ pymongo
 transformers 
 torch
 lxml_html_clean
+dotenv
+google
+google-cloud-aiplatform

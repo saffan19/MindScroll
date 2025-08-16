@@ -4,6 +4,10 @@ from preprocessing.content_extractor import extract_content_from_link
 from preprocessing.category_loader import load_categories
 from preprocessing.nlp_classifier import classify_content
 from preprocessing.article_store import load_existing_articles, save_articles_to_file
+from preprocessing.createLLMContent import send_to_gemini 
+import json
+import re
+
 
 def extract_image_url(entry):
     import re
@@ -111,6 +115,28 @@ if __name__ == "__main__":
                 "rss_categories": rss_categories,
                 "categories": categories
             }
+            try:
+                # Call the function to generate content from the article dictionary
+                llm_content_str = send_to_gemini(article)
+
+                # Remove markdown code block and extract JSON
+                match = re.search(r'```json\s*(\{.*\})\s*```', llm_content_str, re.DOTALL)
+                if match:
+                    llm_content_json = match.group(1)
+                else:
+                    # Fallback: try to find any JSON object in the string
+                    match = re.search(r'(\{.*\})', llm_content_str, re.DOTALL)
+                    llm_content_json = match.group(1) if match else '{}'
+
+                # Parse the JSON string from the response
+                llm_content_dict = json.loads(llm_content_json)
+
+                # Add the generated content dictionary to your article dictionary
+                article["LLM_CONTENT"] = llm_content_dict
+
+            except (json.JSONDecodeError, Exception) as e:
+                print(f"Error generating or parsing LLM content: {e}")
+                article["LLM_CONTENT"] = {}
             total_new_articles.append(article)
             existing_guids.add(guid)
 
