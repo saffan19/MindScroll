@@ -5,6 +5,7 @@ from preprocessing.category_loader import load_categories
 from preprocessing.nlp_classifier import classify_content
 from preprocessing.article_store import load_existing_articles, save_articles_to_file
 from preprocessing.createLLMContent import send_to_gemini 
+from preprocessing.push_to_db import push_to_db, get_existing_guids_from_db
 import json
 import re
 
@@ -77,10 +78,16 @@ if __name__ == "__main__":
     start_time = time.time()
     RSS_URLS = load_rss_urls()
     CATEGORIES = load_categories()
-    all_existing_articles = load_existing_articles()
-    existing_guids = set(article["guid"] for article in all_existing_articles)
-    total_new_articles = []
+    # all_existing_articles = load_existing_articles()  # Remove this line
+    # existing_guids = set(article["guid"] for article in all_existing_articles)  # Remove this line
 
+    # Get existing GUIDs from the database instead of JSON file
+    existing_guids = set(get_existing_guids_from_db())
+
+    total_new_articles = []
+    articles_to_push = []
+
+    ind = 2
     for url in RSS_URLS:
         print(f"Fetching data from {url}...")
         entries = fetch_rss_entries(url)
@@ -89,7 +96,11 @@ if __name__ == "__main__":
             link = entry.get("link")
             source = url
             if not guid or not link or not source or guid in existing_guids:
+                print("HHHHHHHHHHHHHHHHHHH")
                 continue
+            if ind > 10:
+                break
+            ind += 1
             print(f"Processing article: {guid}\n")
             description = entry.get("description", "")
             image_url = extract_image_url(entry)
@@ -100,7 +111,11 @@ if __name__ == "__main__":
             title = entry.get("title", "")
             rss_cat_str = ", ".join(rss_categories) if rss_categories else title
             category_query = f"{rss_cat_str}"
-            categories = classify_content(category_query, CATEGORIES)
+            raw_categories = classify_content(category_query, CATEGORIES)
+            categories = [
+                {"category": cat["category"], "score": cat["score"]}
+                for cat in raw_categories if cat["score"] >= 0.2
+            ]
             article = {
                 "guid": guid,
                 "title": title,
@@ -126,23 +141,36 @@ if __name__ == "__main__":
                     match = re.search(r'(\{.*\})', llm_content_str, re.DOTALL)
                     llm_content_json = match.group(1) if match else '{}'
                 llm_content_dict = json.loads(llm_content_json)
-                article["LLM_CONTENT"] = llm_content_dict
+
+                for field in ["rating", "difficulty", "tags"]:
+                    if field in llm_content_dict:
+                        article[field] = llm_content_dict.pop(field)
+                article["LLM_CONTENT"] = {
+                    k: v for k, v in llm_content_dict.items() if k in ["title", "content"]
+                }
             except (json.JSONDecodeError, Exception) as e:
                 print(f"Error generating or parsing LLM content: {e}")
                 article["LLM_CONTENT"] = {}
 
-            # Only add and save if LLM_CONTENT is not empty
             if article.get("LLM_CONTENT"):
                 total_new_articles.append(article)
+                articles_to_push.append(article)
                 existing_guids.add(guid)
-                all_articles = all_existing_articles + total_new_articles
-                save_articles_to_file(all_articles)
+                # Optionally, you can still save to JSON for backup or transition
+                # all_articles = all_existing_articles + total_new_articles
+                # save_articles_to_file(all_articles)
             else:
                 print("LLM_CONTENT is empty. Stopping execution.")
-                exit(1)
+                break  # Exit the inner loop for entries
+
+        else:
+            continue  # Only reached if inner loop wasn't broken
+        break  # Exit the outer loop for RSS_URLS if LLM_CONTENT was empty
+
+    # Push all new articles to DB in one batch
+    if articles_to_push:
+        push_to_db(articles_to_push)
 
     print(f"Fetched {len(total_new_articles)} new articles.")
-    all_articles = all_existing_articles + total_new_articles
     elapsed = time.time() - start_time
-    print(f"Stored {len(all_articles)} total articles in content/content.json")
     print(f"Time taken: {elapsed:.2f} seconds")

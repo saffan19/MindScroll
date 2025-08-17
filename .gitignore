@@ -1,0 +1,3 @@
+.env
+data_extraction/content/updateJS.py
+data_extraction/pushing_to_db.py
