@@ -1,37 +1,76 @@
 import os
-from dotenv import load_dotenv
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# This should be at the very top of your script
+# Load environment variables
 load_dotenv()
 
-API_KEY = os.getenv("API_KEY")
-
 PROMPT = """
-You are given the following reference data. Your task is to create a short, engaging, and entertaining post from it.
+You are given some reference data. Your task is to transform it into a short, engaging, and entertaining post.
 
-The post will later be converted to a voice format, so it must:
-- Be conversational and engaging
-- Be concise while retaining the essence of the reference data
-- You can add more relevant information if needed, but it must be relevant to the topic
-- Use a friendly and approachable tone
-- Avoid technical jargon or complex language
+### Requirements:
+- The post will be converted into a *voice format*, so it must be:
+  - Conversational and engaging (do not add hello or greetings, and byes)
+  - Concise while keeping the essence of the reference data
+  - Friendly and approachable in tone
+  - Free of technical jargon or overly complex language
+  - do not add expressions like "Whoa, Wow in everything you write"
+- You may add relevant supporting information if it improves clarity or engagement, but stay on-topic.
 
-Return your answer strictly as a JSON object with these keys:
-- title: A catchy, relevant title for the post
-- content: The engaging and concise content for the post
-- tags: A list of 3-7 relevant tags
-- difficulty: One of ["easy", "medium", "hard"]
-- rating: One of ["U", "UA", "A", "S"]
+### Output Format:
+Return your answer *strictly* as a JSON object with the following keys:
+- "title": A catchy, relevant title for the post
+- "content": The engaging and concise post content
+- "tags": A list of 3 - 7 relevant tags
+- "rating": One of:
+    - "U" (Universal - suitable for all audiences)
+    - "UA" (Parental Guidance - suitable for all, but children under 12 may need supervision)
+    - "A" (Adults - restricted to 18+)
+    - "S" (Special category - restricted to specialized audiences such as experts or professionals)
+- "difficulty": One of:
+    - "Beginner" (for users with no prior knowledge)
+    - "Intermediate" (for users with some prior knowledge)
+    - "Advanced" (for users with strong prior knowledge)
 
-Here is your data:
+Reference Data:
 """
 
+# ---------------- API Key Manager ----------------
+def get_api_keys():
+    """Fetch all API keys stored as API_KEY1, API_KEY2, ... from .env/env."""
+    keys = []
+    i = 1
+    while True:
+        key = os.getenv(f"API_KEY{i}")
+        if not key:
+            break
+        keys.append(key)
+        i += 1
+    return keys
 
+class APIKeyManager:
+    def __init__(self):
+        self.keys = get_api_keys()
+        if not self.keys:
+            raise RuntimeError("No API keys found in environment (API_KEY1, API_KEY2, ...)")
+        self.index = 0
 
+    @property
+    def current_key(self):
+        return self.keys[self.index]
 
+    def rotate_key(self):
+        """Switch to next API key if available."""
+        if self.index + 1 < len(self.keys):
+            self.index += 1
+            print(f"Switching to next API key (index={self.index})")
+        else:
+            raise RuntimeError("All API keys are exhausted!")
+
+api_manager = APIKeyManager()
+
+# ---------------- Gemini Function ----------------
 def send_to_gemini(article, prompt_template=None):
     if prompt_template is None:
         prompt_template = (
@@ -41,12 +80,23 @@ def send_to_gemini(article, prompt_template=None):
         )
     article_str = json.dumps(article, indent=2)
     prompt = prompt_template.format(data=article_str)
-    print(API_KEY)
-    genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    response = model.generate_content(prompt)
-    return response.text
+    while True:
+        try:
+            genai.configure(api_key=api_manager.current_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            response = model.generate_content(prompt)
+            return response.text
+
+        except Exception as e:
+            # Example: Check if it's a quota/usage error
+            print(f"Error with key {api_manager.current_key}: {e}")
+            try:
+                api_manager.rotate_key()
+            except RuntimeError:
+                raise  # All keys exhausted, re-raise error
+
 
 # Example usage:
 if __name__ == "__main__":

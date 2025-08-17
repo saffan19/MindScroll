@@ -1,11 +1,50 @@
-# hacker news:
-#https://hnrss.org/frontpage
-# tech crunch
-#https://techcrunch.com/feed/
-#wired
-#https://www.wired.com/feed/tag/ai/latest/rss
-#https://www.wired.com/feed/category/business/latest/rss
+# Cooking
+https://barefeetinthekitchen.com/feed/
+
+# Fitness and health
+https://www.nerdfitness.com/feed/
+https://wellnessmama.com/feed/
+
+# Mental health
+https://www.nationalelfservice.net/mental-health/feed/
+
+# Personal Finance
+https://www.makingsenseofcents.com/feed
+https://www.financialsamurai.com/feed/
+
+# Investment
+https://banyanhill.com/category/investing/feed/
+
+# Travel
+https://www.trawell.in/blog/feed
+
+# C++
+https://www.cppstories.com/index.xml
+
+# AI 
+https://ai-techpark.com/feed/
+
+# Stock market
+https://tradebrains.in/feed/
+
+# Programming
+https://www.thecrazyprogrammer.com/feed
+
+# Startups and tech news
+https://techcrunch.com/feed/
+https://techcrunch.com/category/startups/feed/
+
+# Tech How to
+https://www.howtogeek.com/feed/
+
+# Ideas
 https://www.wired.com/feed/category/ideas/latest/rss
-#https://www.wired.com/feed/category/science/latest/rss
-#https://www.howtogeek.com/feed/
-#https://diyquickly.com/feed/
+
+# DIY GENERAL, Life hacks, Self Improvement
+https://diyquickly.com/feed/
+https://www.lifehack.org/feed
+https://www.smartcuriosity.com/feed/
+
+# Indian politics
+https://theprint.in/category/politics/feed/
+

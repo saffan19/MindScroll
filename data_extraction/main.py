@@ -8,7 +8,6 @@ from preprocessing.createLLMContent import send_to_gemini
 import json
 import re
 
-
 def extract_image_url(entry):
     import re
 
@@ -91,6 +90,7 @@ if __name__ == "__main__":
             source = url
             if not guid or not link or not source or guid in existing_guids:
                 continue
+            print(f"Processing article: {guid}\n")
             description = entry.get("description", "")
             image_url = extract_image_url(entry)
             content = extract_content_from_link(link) if link else ""
@@ -113,36 +113,36 @@ if __name__ == "__main__":
                 "source": source,
                 "content": content,
                 "rss_categories": rss_categories,
-                "categories": categories
+                "categories": categories,
+                "likes": 0,
+                "views": 0,
             }
             try:
-                # Call the function to generate content from the article dictionary
                 llm_content_str = send_to_gemini(article)
-
-                # Remove markdown code block and extract JSON
                 match = re.search(r'```json\s*(\{.*\})\s*```', llm_content_str, re.DOTALL)
                 if match:
                     llm_content_json = match.group(1)
                 else:
-                    # Fallback: try to find any JSON object in the string
                     match = re.search(r'(\{.*\})', llm_content_str, re.DOTALL)
                     llm_content_json = match.group(1) if match else '{}'
-
-                # Parse the JSON string from the response
                 llm_content_dict = json.loads(llm_content_json)
-
-                # Add the generated content dictionary to your article dictionary
                 article["LLM_CONTENT"] = llm_content_dict
-
             except (json.JSONDecodeError, Exception) as e:
                 print(f"Error generating or parsing LLM content: {e}")
                 article["LLM_CONTENT"] = {}
-            total_new_articles.append(article)
-            existing_guids.add(guid)
+
+            # Only add and save if LLM_CONTENT is not empty
+            if article.get("LLM_CONTENT"):
+                total_new_articles.append(article)
+                existing_guids.add(guid)
+                all_articles = all_existing_articles + total_new_articles
+                save_articles_to_file(all_articles)
+            else:
+                print("LLM_CONTENT is empty. Stopping execution.")
+                exit(1)
 
     print(f"Fetched {len(total_new_articles)} new articles.")
     all_articles = all_existing_articles + total_new_articles
-    save_articles_to_file(all_articles)
     elapsed = time.time() - start_time
     print(f"Stored {len(all_articles)} total articles in content/content.json")
     print(f"Time taken: {elapsed:.2f} seconds")
